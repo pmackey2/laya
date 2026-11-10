@@ -31,6 +31,10 @@ RUN pip install ".[serve]" && pip check
 
 FROM ${PYTHON_IMAGE} AS runtime
 
+# Published CUDA images opt in at build time; local CPU builds keep their default.
+# Operators can still override the device with a runtime environment variable.
+ARG LAYA_DEVICE=cpu
+
 # Optional ModelScope prefetch: with `--build-arg MODELSCOPE_MODEL=multilingual` the checkpoint is
 # baked into the hub cache during the build, so the image never depends on huggingface.co. The
 # argument takes a checkpoint type (multilingual, english, typed-decisions, all) or a comma- or
@@ -54,7 +58,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
     USE_TORCH=1 \
     TOKENIZERS_PARALLELISM=false \
     OMP_NUM_THREADS=4 \
-    LAYA_DEVICE=cpu \
+    LAYA_DEVICE=${LAYA_DEVICE} \
     HF_HOME=/home/laya/.cache/huggingface
 
 RUN groupadd --gid 10001 laya \
