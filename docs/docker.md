@@ -22,6 +22,41 @@ Predictions and confidence still need evaluation on your workload. See the
 For ARM64 hosts, DGX Spark and Apple Silicon, see
 [ARM64 and DGX Spark containers](docker-platforms.md).
 
+## Publish to GitHub Container Registry
+
+The **Publish Docker image** workflow builds the root `Dockerfile` and pushes the
+CPU image for `linux/amd64` to `ghcr.io/<owner>/<repository>` (both lowercased).
+It runs only when manually requested, not on pushes, pull requests or releases.
+The existing **Docker** workflow continues to run the build and smoke tests.
+
+Once `.github/workflows/publish-docker.yml` is on the repository's default branch:
+
+1. Open **Actions** in your fork. If GitHub has disabled Actions for the fork,
+   enable workflows first.
+2. Select **Publish Docker image**, then **Run workflow**.
+3. Choose the branch to build and select **Run workflow** again.
+
+Every run publishes `sha-<full-commit-sha>`. Runs from the default branch also
+update `latest`; builds from other branches or tags do not replace `latest`.
+The workflow uses the automatically supplied `GITHUB_TOKEN` with
+`contents: read` and `packages: write`, so no personal access token or repository
+secret is needed. Its source label links the image to the fork rather than the
+upstream repository.
+
+For `pmackey2/laya`, pull the default-branch image after a successful run:
+
+```bash
+docker pull ghcr.io/pmackey2/laya:latest
+docker run --rm -v laya-cache:/home/laya/.cache/huggingface ghcr.io/pmackey2/laya:latest
+```
+
+The first run still downloads model weights into the cache volume. The workflow
+does not bake in checkpoints or build CUDA/ARM64 variants. New GHCR packages are
+private by default, even for public repositories; authenticate with GHCR to pull
+a private image, or explicitly change the package visibility to public. If a
+package with the same name already exists, ensure this repository has Actions
+write access to it in the package settings before publishing.
+
 ## NVIDIA GPU / CUDA
 
 Install a compatible NVIDIA driver and configure Docker with the
