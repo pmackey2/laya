@@ -14,6 +14,29 @@ permissions:
   contents: read
 
 jobs:
+  cuda-build:
+    # Same AMD64 CUDA build and default device as the publishing workflow.
+    # Hosted runners have no GPU: this checks packaging, not GPU inference.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build AMD64 CUDA 13.0 image
+        run: docker build --pull --build-arg TORCH_INDEX=cu130 --build-arg LAYA_DEVICE=cuda -t laya:cuda .
+      - name: Check CUDA libraries, default device and dependencies without a GPU
+        run: |
+          docker run --rm --network none laya:cuda python -c '
+          import os, platform, torch
+          from torch.backends import cusparselt
+          assert platform.machine() == "x86_64"
+          assert torch.version.cuda == "13.0"
+          assert cusparselt.is_available()
+          assert os.environ["LAYA_DEVICE"] == "cuda"
+          assert os.environ["TORCH_DISABLE_NATIVE_JIT"] == "1"
+          print(torch.__version__, torch.version.cuda)
+          '
+          docker run --rm --network none laya:cuda pip check
+
   spark-build:
     # Builds the DGX Spark image (ARM64, CUDA 13.0) and checks its libraries load.
     # No GPU here, so this proves installation, not inference.
@@ -74,6 +97,7 @@ jobs:
           from laya import Router
           assert os.getuid() == 10001
           assert torch.version.cuda is None
+          assert os.environ["LAYA_DEVICE"] == "cpu"
           cache = pathlib.Path(os.environ["HF_HOME"])
           (cache / "write-test").write_text("cache survives container replacement")
           request = json.loads(pathlib.Path("/opt/laya/examples/request.json").read_text())

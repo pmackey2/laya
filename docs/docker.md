@@ -24,8 +24,10 @@ For ARM64 hosts, DGX Spark and Apple Silicon, see
 
 ## Publish to GitHub Container Registry
 
-The **Publish Docker image** workflow builds the root `Dockerfile` and pushes the
-CPU image for `linux/amd64` to `ghcr.io/<owner>/<repository>` (both lowercased).
+The **Publish Docker image** workflow builds the root `Dockerfile` and pushes a
+`linux/amd64` image to `ghcr.io/<owner>/<repository>` (both lowercased). It defaults
+to the NVIDIA GPU variant, with PyTorch CUDA 13.0 wheels (`TORCH_INDEX=cu130`) and
+`LAYA_DEVICE=cuda` baked into the image. Select `cpu` for a CPU-only image instead.
 It runs only when manually requested, not on pushes, pull requests or releases.
 The existing **Docker** workflow continues to run the build and smoke tests.
 
@@ -34,24 +36,48 @@ Once `.github/workflows/publish-docker.yml` is on the repository's default branc
 1. Open **Actions** in your fork. If GitHub has disabled Actions for the fork,
    enable workflows first.
 2. Select **Publish Docker image**, then **Run workflow**.
-3. Choose the branch to build and select **Run workflow** again.
+3. Choose the branch and image variant (`cuda` by default), then select
+   **Run workflow** again.
 
-Every run publishes `sha-<full-commit-sha>`. Runs from the default branch also
-update `latest`; builds from other branches or tags do not replace `latest`.
+Every run publishes `sha-<full-commit-sha>-<variant>`. From the default branch,
+CUDA builds also update `cuda` and `latest`; CPU builds update only `cpu`.
+CPU builds cannot replace `latest` or `cuda`. Builds from other branches or tags
+publish only their SHA tag, so they cannot replace the default-branch aliases.
 The workflow uses the automatically supplied `GITHUB_TOKEN` with
 `contents: read` and `packages: write`, so no personal access token or repository
 secret is needed. Its source label links the image to the fork rather than the
 upstream repository.
 
-For `pmackey2/laya`, pull the default-branch image after a successful run:
+For `pmackey2/laya`, run the GPU image after a successful `cuda` publish:
 
 ```bash
-docker pull ghcr.io/pmackey2/laya:latest
-docker run --rm -v laya-cache:/home/laya/.cache/huggingface ghcr.io/pmackey2/laya:latest
+docker pull ghcr.io/pmackey2/laya:cuda
+docker run --rm --gpus all -v laya-cache:/home/laya/.cache/huggingface ghcr.io/pmackey2/laya:cuda
 ```
 
+The host needs an NVIDIA GPU supported by the installed PyTorch wheels, an
+[R580 or newer NVIDIA driver for CUDA 13.x](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html),
+and the NVIDIA Container Toolkit configured for Docker. The driver comes from
+the host, not the image. Check real GPU access before downloading models:
+
+```bash
+docker run --rm --gpus all ghcr.io/pmackey2/laya:cuda python -c \
+  'import torch; assert torch.cuda.is_available(); print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0)); print(torch.ones(1, device="cuda").cpu())'
+```
+
+The GitHub-hosted runner has no GPU. Build checks verify the CUDA libraries and
+default device, not GPU inference. The check above verifies a real CUDA operation;
+validate model inference on the deployment host too, including CPU fallback
+checks described in [container platform validation](docker-platforms.md).
+
+For a CPU-only deployment, publish the `cpu` variant and use
+`ghcr.io/pmackey2/laya:cpu` without `--gpus all`. The original CPU image remains
+available as `sha-9477dbced16e775c6c47d393626241bc180c0a18`. Until the first
+successful CUDA publish, the existing `latest` still refers to that CPU image;
+merging a workflow change does not rebuild an image.
+
 The first run still downloads model weights into the cache volume. The workflow
-does not bake in checkpoints or build CUDA/ARM64 variants. New GHCR packages are
+does not bake in checkpoints or build ARM64 variants. New GHCR packages are
 private by default, even for public repositories; authenticate with GHCR to pull
 a private image, or explicitly change the package visibility to public. If a
 package with the same name already exists, ensure this repository has Actions

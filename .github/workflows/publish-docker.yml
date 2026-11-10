@@ -2,6 +2,15 @@ name: Publish Docker image
 
 on:
   workflow_dispatch:
+    inputs:
+      variant:
+        description: Image to publish (CUDA 13.0 GPU, or CPU only)
+        type: choice
+        required: true
+        default: cuda
+        options:
+          - cuda
+          - cpu
 
 permissions:
   contents: read
@@ -34,8 +43,9 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           flavor: latest=false
           tags: |
-            type=sha,format=long
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=sha,format=long,suffix=-${{ inputs.variant }}
+            type=raw,value=${{ inputs.variant }},enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=raw,value=latest,enable=${{ inputs.variant == 'cuda' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
@@ -46,7 +56,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and publish CPU image
+      - name: Build and publish ${{ inputs.variant }} image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -54,7 +64,10 @@ jobs:
           platforms: linux/amd64
           pull: true
           push: true
+          build-args: |
+            TORCH_INDEX=${{ inputs.variant == 'cuda' && 'cu130' || 'cpu' }}
+            LAYA_DEVICE=${{ inputs.variant }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=publish-docker
-          cache-to: type=gha,scope=publish-docker,mode=max
+          cache-from: type=gha,scope=publish-docker-${{ inputs.variant }}
+          cache-to: type=gha,scope=publish-docker-${{ inputs.variant }},mode=max
