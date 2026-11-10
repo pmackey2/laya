@@ -24,10 +24,11 @@ For ARM64 hosts, DGX Spark and Apple Silicon, see
 
 ## Publish to GitHub Container Registry
 
-The **Publish Docker image** workflow builds the root `Dockerfile` and pushes a
-`linux/amd64` image to `ghcr.io/<owner>/<repository>` (both lowercased). It defaults
-to the NVIDIA GPU variant, with PyTorch CUDA 13.0 wheels (`TORCH_INDEX=cu130`) and
-`LAYA_DEVICE=cuda` baked into the image. Select `cpu` for a CPU-only image instead.
+One manual run of **Publish Docker image** builds the root `Dockerfile` twice and
+publishes both `linux/amd64` variants to `ghcr.io/<owner>/<repository>` (both
+lowercased): CPU-only, and NVIDIA GPU with PyTorch CUDA 13.0 wheels
+(`TORCH_INDEX=cu130`) and `LAYA_DEVICE=cuda` baked into the image. There is no
+variant to select; both jobs build the same source commit.
 It runs only when manually requested, not on pushes, pull requests or releases.
 The existing **Docker** workflow continues to run the build and smoke tests.
 
@@ -36,19 +37,24 @@ Once `.github/workflows/publish-docker.yml` is on the repository's default branc
 1. Open **Actions** in your fork. If GitHub has disabled Actions for the fork,
    enable workflows first.
 2. Select **Publish Docker image**, then **Run workflow**.
-3. Choose the branch and image variant (`cuda` by default), then select
-   **Run workflow** again.
+3. Choose the branch, then select **Run workflow** again. Both the CPU and CUDA
+   jobs run automatically.
 
-Every run publishes `sha-<full-commit-sha>-<variant>`. From the default branch,
-CUDA builds also update `cuda` and `latest`; CPU builds update only `cpu`.
+Every run publishes `sha-<full-commit-sha>-cpu` and `sha-<full-commit-sha>-cuda`.
+From the default branch, CUDA builds also update `cuda` and `latest`; CPU builds
+update only `cpu`. **After a successful CUDA publish, `latest` is the CUDA/GPU
+image; the CPU job never writes it.**
 CPU builds cannot replace `latest` or `cuda`. Builds from other branches or tags
 publish only their SHA tag, so they cannot replace the default-branch aliases.
+The jobs have separate caches and do not cancel one another if one fails. A
+failed job makes the workflow fail, but the other image may already be published;
+check both job results before treating the pair as available.
 The workflow uses the automatically supplied `GITHUB_TOKEN` with
 `contents: read` and `packages: write`, so no personal access token or repository
 secret is needed. Its source label links the image to the fork rather than the
 upstream repository.
 
-For `pmackey2/laya`, run the GPU image after a successful `cuda` publish:
+For `pmackey2/laya`, run the GPU image after a successful publish:
 
 ```bash
 docker pull ghcr.io/pmackey2/laya:cuda
@@ -70,8 +76,8 @@ default device, not GPU inference. The check above verifies a real CUDA operatio
 validate model inference on the deployment host too, including CPU fallback
 checks described in [container platform validation](docker-platforms.md).
 
-For a CPU-only deployment, publish the `cpu` variant and use
-`ghcr.io/pmackey2/laya:cpu` without `--gpus all`. The original CPU image remains
+For a CPU-only deployment, the same workflow run publishes
+`ghcr.io/pmackey2/laya:cpu`; use it without `--gpus all`. The original CPU image remains
 available as `sha-9477dbced16e775c6c47d393626241bc180c0a18`. Until the first
 successful CUDA publish, the existing `latest` still refers to that CPU image;
 merging a workflow change does not rebuild an image.
