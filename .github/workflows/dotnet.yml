@@ -13,9 +13,8 @@ name: .NET
 # security.yml is advisory for the same reason ("visible here, not blocking PRs"). When this lane
 # goes red, the fix is a follow-up port, not a revert of the Python change.
 
+# Fork policy: CI runs only when explicitly started from Actions.
 on:
-  pull_request:
-  push:
   workflow_dispatch:
 
 permissions:

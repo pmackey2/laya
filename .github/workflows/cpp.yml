@@ -27,9 +27,8 @@ name: C++
 # change; the sanitizer presets (asan-ubsan) run in `build`. CodeQL for C++ is tracked as a TODO
 # row in security.yml's `codeql` matrix (it needs a manual build step and the maintainer's yes).
 
+# Fork policy: CI runs only when explicitly started from Actions.
 on:
-  pull_request:
-  push:
   workflow_dispatch:
 
 permissions:

@@ -1,11 +1,10 @@
 name: Security
 
+# Fork policy: push/PR CI is manual; scheduled checks remain enabled.
 on:
-  pull_request:
-  push:
-    branches: [main]
   schedule:
     - cron: "17 6 * * 1"     # Monday morning: catch CVEs disclosed since the last push
+  workflow_dispatch:
 
 # Cancel outdated pull request runs; on main, run per commit.
 concurrency:

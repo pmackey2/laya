@@ -3,9 +3,8 @@ name: Rust
 # Python is the product; Rust follows it. Report parity drift without blocking
 # Python improvements. Always regenerate fixtures from this checkout, never cache
 # goldens or quietly pass model-backed tests with missing artifacts.
+# Fork policy: CI runs only when explicitly started from Actions.
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:

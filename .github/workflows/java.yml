@@ -10,10 +10,10 @@ name: Java
 # and laya-java follows it, so a Python-side improvement must not be blocked on a port catching up.
 # When this lane goes red the fix is a follow-up port, not a revert of the Python change.
 
+# Fork policy: CI runs only when explicitly started from Actions.
 on:
-  pull_request:
-  push:
   workflow_dispatch:
+
 #
 # SUPPLY CHAIN: `laya-java/gradle/wrapper/gradle-wrapper.jar` is a binary that executes at build
 # time, which makes it the one file here a reviewer cannot read. Every job below that runs

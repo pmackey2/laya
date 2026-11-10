@@ -3,12 +3,8 @@ name: Docs
 # Builds the documentation site from docs/ and publishes it to GitHub Pages.
 # Enable Pages before deploying: Settings -> Pages -> Source: GitHub Actions.
 
+# Fork policy: CI runs only when explicitly started from Actions.
 on:
-  pull_request:
-    paths: [docs/**, laya/**, zensical.toml, requirements-docs.txt, .github/workflows/docs.yml]
-  push:
-    branches: [main]
-    paths: [docs/**, laya/**, zensical.toml, requirements-docs.txt, .github/workflows/docs.yml]
   workflow_dispatch:
 
 permissions:

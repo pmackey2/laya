@@ -1,9 +1,8 @@
 name: CI
 
+# Fork policy: CI runs only when explicitly started from Actions.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
